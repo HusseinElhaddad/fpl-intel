@@ -66,7 +66,7 @@ print("=" * 60)
 FEATURE_COLS = [
     # Core stats
     "minutes", "avg_minutes_per_gw", "appearance_rate",
-    "goals_scored", "assists", "clean_sheets", "bonus",
+        "goals_scored", "assists", "clean_sheets", "bonus",
     "goals_per_90", "assists_per_90", "cs_per_90", "bonus_per_90",
     "gc_per_90", "ict_index", "ict_per_90",
     # Form & ownership
