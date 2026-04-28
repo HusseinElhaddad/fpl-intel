@@ -43,6 +43,52 @@ The project history currently includes the following development milestones:
 - The repository is clean with no uncommitted changes detected in the current working directory.
 - The main development focus is on improving the vector store build process, retrieval logic, and RAG orchestration layer.
 
+## Architecture
+
+FPL-Intel is a hybrid RAG + ML assistant. A user query enters through the Streamlit UI, gets routed by an intent classifier, and is answered by either the **RAG pipeline** (Chroma + Google Gemini) for news/Q&A or the **ML pipeline** (XGBoost) for points prediction. SQLite is the source of truth; Chroma and the pickle bundles are derived stores rebuilt by offline scripts.
+
+The four diagrams below are the at-a-glance story. Full documentation — three C4 levels, two data-flow diagrams, and detailed sequence diagrams — lives in [`docs/`](docs/README.md).
+
+### System context (C4 — Level 1)
+
+<p align="center"><img src="docs/images/c4-context.png" alt="C4 System Context — FPL-Intel" width="900"/></p>
+
+> Source: [`docs/architecture/c4-context.md`](docs/architecture/c4-context.md)
+
+### Containers (C4 — Level 2)
+
+<p align="center"><img src="docs/images/c4-container.png" alt="C4 Container Diagram — FPL-Intel" width="700"/></p>
+
+> Source: [`docs/architecture/c4-container.md`](docs/architecture/c4-container.md)
+
+### Request lifecycle
+
+<p align="center"><img src="docs/images/request-lifecycle.png" alt="Request lifecycle — FPL-Intel" width="700"/></p>
+
+> Source: [`docs/sequence/request-lifecycle.md`](docs/sequence/request-lifecycle.md)
+
+### Sequence — RAG chat query
+
+<p align="center"><img src="docs/images/chat-rag-sequence.png" alt="Sequence — RAG chat query" width="900"/></p>
+
+> Source: [`docs/sequence/chat-rag-sequence.md`](docs/sequence/chat-rag-sequence.md)
+
+### Documentation map
+
+The full set of diagrams lives under [`docs/`](docs/README.md):
+
+| Layer | File | What you learn |
+|-------|------|----------------|
+| C4 — Context | [`docs/architecture/c4-context.md`](docs/architecture/c4-context.md) | Users and external services |
+| C4 — Containers | [`docs/architecture/c4-container.md`](docs/architecture/c4-container.md) | Runnable parts and stores |
+| C4 — Components | [`docs/architecture/c4-component.md`](docs/architecture/c4-component.md) | Inside the orchestrator + RAG service |
+| Data flow — Ingestion / ML | [`docs/dataflow/ingestion-pipeline.md`](docs/dataflow/ingestion-pipeline.md) | FPL data → trained models |
+| Data flow — RAG indexing | [`docs/dataflow/rag-indexing-pipeline.md`](docs/dataflow/rag-indexing-pipeline.md) | SQLite → Chroma vector store |
+| Sequence — Request lifecycle | [`docs/sequence/request-lifecycle.md`](docs/sequence/request-lifecycle.md) | End-to-end query flow |
+| Sequence — RAG chat | [`docs/sequence/chat-rag-sequence.md`](docs/sequence/chat-rag-sequence.md) | Detailed RAG branch |
+| Sequence — ML prediction | [`docs/sequence/ml-prediction-sequence.md`](docs/sequence/ml-prediction-sequence.md) | Detailed ML branch |
+| Sequence — Offline training | [`docs/sequence/offline-training-sequence.md`](docs/sequence/offline-training-sequence.md) | Maintainer workflow for retraining + reindexing |
+
 ## Notes on Recent Work
 
 - `build_vector_store.py` is responsible for constructing the vector store used by the retriever.
