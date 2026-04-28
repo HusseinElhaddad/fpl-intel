@@ -3,23 +3,23 @@
 **FPL-Intel** sits between a single human user (an FPL manager) and three external services. The user asks football questions in natural language; the system answers with player predictions, news summaries, and recommendations by combining its own data with calls to the upstream services below.
 
 ```mermaid
-C4Context
-    title System Context — FPL-Intel
+flowchart LR
+    user["<b>FPL Manager</b><br/><span style='font-size:11px'>[Person]</span><br/><br/>Asks questions about players,<br/>fixtures, transfers, and injuries."]:::person
 
-    Person(user, "FPL Manager", "Asks questions about players, fixtures, transfers, and injuries.")
+    fplIntel["<b>FPL-Intel</b><br/><span style='font-size:11px'>[Software System]</span><br/><br/>Hybrid RAG + ML assistant.<br/>Answers FPL questions using a vector<br/>store of news/players and an XGBoost<br/>points-prediction model."]:::system
 
-    System(fplIntel, "FPL-Intel", "Hybrid RAG + ML assistant. Answers FPL questions using a vector store of news/players and an XGBoost points-prediction model.")
+    fplApi["<b>Fantasy Premier League API</b><br/><span style='font-size:11px'>[External System]</span><br/><br/>bootstrap-static<br/>+ element-summary endpoints"]:::external
+    gemini["<b>Google Gemini Pro</b><br/><span style='font-size:11px'>[External System]</span><br/><br/>LLM used by the RAG pipeline<br/>to generate answers from<br/>retrieved context"]:::external
+    hf["<b>HuggingFace Hub</b><br/><span style='font-size:11px'>[External System]</span><br/><br/>Hosts the all-MiniLM-L6-v2<br/>sentence-transformer used<br/>for embeddings"]:::external
 
-    System_Ext(fplApi, "Fantasy Premier League API", "Official FPL endpoints — bootstrap-static and element-summary. Source of player, team, and fixture data.")
-    System_Ext(gemini, "Google Gemini Pro", "LLM used by the RAG pipeline to generate natural-language answers from retrieved context.")
-    System_Ext(hf, "HuggingFace Hub", "Hosts the all-MiniLM-L6-v2 sentence-transformer used for embeddings.")
+    user -->|"Asks questions, views<br/>predictions and dashboards<br/><i>[Streamlit UI]</i>"| fplIntel
+    fplIntel -->|"Fetches live player,<br/>team, fixture data<br/><i>[HTTPS / JSON]</i>"| fplApi
+    fplIntel -->|"Sends prompt + retrieved<br/>context, receives answer<br/><i>[HTTPS / Gemini SDK]</i>"| gemini
+    fplIntel -->|"Downloads embedding<br/>model on first run<br/><i>[HTTPS]</i>"| hf
 
-    Rel(user, fplIntel, "Asks questions, views predictions and dashboards", "Streamlit UI")
-    Rel(fplIntel, fplApi, "Fetches live player, team, fixture data", "HTTPS / JSON")
-    Rel(fplIntel, gemini, "Sends prompt + retrieved context, receives answer", "HTTPS / Gemini SDK")
-    Rel(fplIntel, hf, "Downloads embedding model on first run", "HTTPS")
-
-    UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")
+    classDef person fill:#08427b,stroke:#052e56,stroke-width:2px,color:#ffffff
+    classDef system fill:#1168bd,stroke:#0b4884,stroke-width:2px,color:#ffffff
+    classDef external fill:#999999,stroke:#6b6b6b,stroke-width:2px,color:#ffffff
 ```
 
 ## Notes
