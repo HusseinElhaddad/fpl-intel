@@ -87,5 +87,14 @@ This project is configured for **Streamlit Community Cloud**.
 ---
 
 ## 👥 Contributors
-- **Hussein Elhaddad** (Project Lead & Integration)
-- *Developed for Level 3 ML Project*
+
+This project was developed as part of a **Level 3 Machine Learning Project** by:
+
+| Name | Role |
+| :--- | :--- |
+| **Hussein Elhaddad** | Project Lead & System Integration |
+| **Ahmed Elsadek** | ML Research & Feature Engineering |
+| **Hossam Salah** | RAG Development & Data Pipeline |
+| **Andrew George** | NLU Optimization & Intent Routing |
+| **Elfarouk Omar** | UI Design & Analytics Dashboard |
+| **Ahmed Ehab** | Data Scraping & Model Validation |
