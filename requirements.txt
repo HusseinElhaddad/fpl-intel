@@ -31,3 +31,4 @@ requests
 beautifulsoup4
 tqdm
 pyyaml
+torchvision
