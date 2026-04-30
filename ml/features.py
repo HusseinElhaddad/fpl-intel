@@ -14,7 +14,7 @@ import matplotlib
 matplotlib.use("Agg")          # non-interactive backend — saves to file
 
 parser = argparse.ArgumentParser(description="FPL Intel — predict player points")
-parser.add_argument("model", nargs="?", default="data/fpl_intel.db", help="Path to .db")
+parser.add_argument("model", nargs="?", default="fpl_intel.db", help="Path to .db")
 args = parser.parse_args()
 DB_PATH = args.model
 
