@@ -58,9 +58,12 @@ with tab1:
 
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
-            st.write(msg["content"])
+            if msg["role"] == "assistant":
+                st.markdown(msg["content"])
+            else:
+                st.write(msg["content"])
 
-    user_input = st.chat_input("Ask about players...")
+    user_input = st.chat_input("Ask about players, injuries, predictions...")
 
     if user_input:
         st.session_state.messages.append({"role": "user", "content": user_input})
@@ -69,26 +72,60 @@ with tab1:
             st.write(user_input)
 
         try:
-            result = route(user_input)
-            if "ml" in result and "rag" in result: # Default combined response
-                result = result["ml"]
+            result = route(user_input, chat_history=st.session_state.messages[:-1])
         except Exception as e:
             result = {
                 "player": "Error",
                 "predicted_points": 0.0,
                 "news": "Error connecting to pipeline",
-                "advice": str(e)
+                "advice": str(e),
+                "_type": "error",
             }
 
         with st.chat_message("assistant"):
-            st.subheader(result["player"])
-            st.metric("Predicted Points", result["predicted_points"])
-            st.info(result["news"])
-            st.success(result["advice"])
+            if "ml" in result and "rag" in result:
+                # Combined response — show both side-by-side
+                ml_res = result["ml"]
+                rag_res = result["rag"]
+                col_ml, col_rag = st.columns(2)
+                with col_ml:
+                    st.subheader(f"📊 {ml_res.get('player', user_input)}")
+                    if ml_res.get("predicted_points") is not None:
+                        st.metric("Predicted Points", ml_res["predicted_points"])
+                    if ml_res.get("advice"):
+                        st.success(ml_res["advice"])
+                with col_rag:
+                    st.subheader("📰 Latest News & Analysis")
+                    st.markdown(rag_res.get("news", ""))
+                display_text = (
+                    f"**ML Prediction** — {ml_res.get('player', user_input)}: "
+                    f"{ml_res.get('predicted_points', '?')} pts\n\n"
+                    f"**Analysis**\n{rag_res.get('news', '')}"
+                )
+            elif result.get("_type") == "rag" or (
+                result.get("predicted_points") is None and result.get("news")
+            ):
+                # Pure RAG answer — render as markdown
+                st.markdown(result["news"])
+                display_text = result["news"]
+            else:
+                # ML-only answer — structured card
+                st.subheader(result.get("player", user_input))
+                if result.get("predicted_points") is not None:
+                    st.metric("Predicted Points", result["predicted_points"])
+                if result.get("news"):
+                    st.info(result["news"])
+                if result.get("advice"):
+                    st.success(result["advice"])
+                display_text = (
+                    f"**{result.get('player', user_input)}** — "
+                    f"{result.get('predicted_points', '?')} pts\n"
+                    f"{result.get('advice', '')}"
+                )
 
         st.session_state.messages.append({
             "role": "assistant",
-            "content": str(result)
+            "content": display_text,
         })
 
 # =====================================================
