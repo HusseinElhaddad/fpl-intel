@@ -93,8 +93,8 @@ This project was developed as part of a **Level 3 Machine Learning Project** by:
 | Name | Role |
 | :--- | :--- |
 | **Hussein Elhaddad** | Project Lead & System Integration |
-| **Ahmed Elsadek** | ML Research & Feature Engineering |
+| **Ahmed Elsadek** | NLU Optimization & Intent Routing |
 | **Hossam Salah** | RAG Development & Data Pipeline |
-| **Andrew George** | NLU Optimization & Intent Routing |
+| **Andrew George** | ML Research & Feature Engineering |
 | **Elfarouk Omar** | UI Design & Analytics Dashboard |
 | **Ahmed Ehab** | Data Scraping & Model Validation |
