@@ -33,7 +33,10 @@ SESSION.headers.update(HEADERS)
 
 
 def _get(url: str) -> dict:
-    """GET with basic retry logic."""
+    """GET with basic retry logic.
+
+    Raises ``requests.RequestException`` after 3 failed attempts.
+    """
     for attempt in range(3):
         try:
             resp = SESSION.get(url, timeout=15)
@@ -44,6 +47,23 @@ def _get(url: str) -> dict:
                 raise
             print(f"  Retrying {url} ({exc})")
             time.sleep(2 ** attempt)
+    raise requests.RequestException(f"Failed to fetch {url} after 3 attempts")  # unreachable, keeps type checkers happy
+
+
+def _to_float(val) -> float | None:
+    """Coerce *val* to float, returning None on failure."""
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return None
+
+
+def _to_int(val) -> int | None:
+    """Coerce *val* to int, returning None on failure."""
+    try:
+        return int(val)
+    except (TypeError, ValueError):
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -183,46 +203,34 @@ def _fetch_bootstrap(conn: sqlite3.Connection) -> list[dict]:
     print(f"  Teams upserted: {len(data['teams'])}")
 
     # --- players ---
-    def _float(val):
-        try:
-            return float(val)
-        except (TypeError, ValueError):
-            return None
-
-    def _int(val):
-        try:
-            return int(val)
-        except (TypeError, ValueError):
-            return None
-
     players = [
         {
             "id": e["id"],
             "web_name": e["web_name"],
             "team_id": e["team"],
             "position": e["element_type"],
-            "total_points": _int(e.get("total_points")),
-            "now_cost": _int(e.get("now_cost")),
-            "selected_by_pct": _float(e.get("selected_by_percent", e.get("selected_by_pct"))),
-            "minutes": _int(e.get("minutes")),
-            "goals_scored": _int(e.get("goals_scored")),
-            "assists": _int(e.get("assists")),
-            "clean_sheets": _int(e.get("clean_sheets")),
-            "bonus": _int(e.get("bonus")),
-            "form": _float(e.get("form")),
-            "ict_index": _float(e.get("ict_index")),
-            "chance_of_playing_next_round": _int(e.get("chance_of_playing_next_round")),
-            "chance_of_playing_this_round": _int(e.get("chance_of_playing_this_round")),
+            "total_points": _to_int(e.get("total_points")),
+            "now_cost": _to_int(e.get("now_cost")),
+            "selected_by_pct": _to_float(e.get("selected_by_percent", e.get("selected_by_pct"))),
+            "minutes": _to_int(e.get("minutes")),
+            "goals_scored": _to_int(e.get("goals_scored")),
+            "assists": _to_int(e.get("assists")),
+            "clean_sheets": _to_int(e.get("clean_sheets")),
+            "bonus": _to_int(e.get("bonus")),
+            "form": _to_float(e.get("form")),
+            "ict_index": _to_float(e.get("ict_index")),
+            "chance_of_playing_next_round": _to_int(e.get("chance_of_playing_next_round")),
+            "chance_of_playing_this_round": _to_int(e.get("chance_of_playing_this_round")),
             "news": e.get("news") or "",
-            "xg_scored": _float(e.get("expected_goals")),
-            "xa": _float(e.get("expected_assists")),
-            "yellow_cards": _int(e.get("yellow_cards")),
-            "red_cards": _int(e.get("red_cards")),
-            "saves": _int(e.get("saves")),
-            "bps": _int(e.get("bps")),
-            "transfers_in_event": _int(e.get("transfers_in_event")),
-            "transfers_out_event": _int(e.get("transfers_out_event")),
-            "value_season": _float(e.get("value_season")),
+            "xg_scored": _to_float(e.get("expected_goals")),
+            "xa": _to_float(e.get("expected_assists")),
+            "yellow_cards": _to_int(e.get("yellow_cards")),
+            "red_cards": _to_int(e.get("red_cards")),
+            "saves": _to_int(e.get("saves")),
+            "bps": _to_int(e.get("bps")),
+            "transfers_in_event": _to_int(e.get("transfers_in_event")),
+            "transfers_out_event": _to_int(e.get("transfers_out_event")),
+            "value_season": _to_float(e.get("value_season")),
             "fetched_at": now,
         }
         for e in data["elements"]
@@ -292,18 +300,6 @@ def _fetch_player_histories(conn: sqlite3.Connection, elements: list[dict]) -> N
     total = len(elements)
     inserted = 0
 
-    def _float(val):
-        try:
-            return float(val)
-        except (TypeError, ValueError):
-            return None
-
-    def _int(val):
-        try:
-            return int(val)
-        except (TypeError, ValueError):
-            return None
-
     for i, element in enumerate(elements, 1):
         pid = element["id"]
         try:
@@ -316,19 +312,19 @@ def _fetch_player_histories(conn: sqlite3.Connection, elements: list[dict]) -> N
         for h in detail.get("history", []):
             rows.append({
                 "player_id": pid,
-                "round": _int(h.get("round")),
-                "total_points": _int(h.get("total_points")),
-                "goals_scored": _int(h.get("goals_scored")),
-                "assists": _int(h.get("assists")),
-                "clean_sheets": _int(h.get("clean_sheets")),
-                "minutes": _int(h.get("minutes")),
-                "bonus": _int(h.get("bonus")),
-                "bps": _int(h.get("bps")),
-                "xg_scored": _float(h.get("expected_goals")),
-                "xa": _float(h.get("expected_assists")),
-                "saves": _int(h.get("saves")),
-                "yellow_cards": _int(h.get("yellow_cards")),
-                "red_cards": _int(h.get("red_cards")),
+                "round": _to_int(h.get("round")),
+                "total_points": _to_int(h.get("total_points")),
+                "goals_scored": _to_int(h.get("goals_scored")),
+                "assists": _to_int(h.get("assists")),
+                "clean_sheets": _to_int(h.get("clean_sheets")),
+                "minutes": _to_int(h.get("minutes")),
+                "bonus": _to_int(h.get("bonus")),
+                "bps": _to_int(h.get("bps")),
+                "xg_scored": _to_float(h.get("expected_goals")),
+                "xa": _to_float(h.get("expected_assists")),
+                "saves": _to_int(h.get("saves")),
+                "yellow_cards": _to_int(h.get("yellow_cards")),
+                "red_cards": _to_int(h.get("red_cards")),
                 "fetched_at": now,
             })
 

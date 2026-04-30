@@ -17,6 +17,7 @@ Incremental update (default):
 """
 
 import argparse
+import math
 import sqlite3
 
 import pandas as pd
@@ -99,18 +100,19 @@ def _build_news_docs(news_df: pd.DataFrame) -> list:
     return docs
 
 
+def _fmt_stat(val, fmt: str = ".2f") -> str:
+    """Format a numeric stat, returning 'N/A' for None/NaN values."""
+    try:
+        if val is None or (isinstance(val, float) and math.isnan(val)):
+            return "N/A"
+        return format(float(val), fmt)
+    except (TypeError, ValueError):
+        return "N/A"
+
+
 def _build_player_docs(players_df: pd.DataFrame) -> list:
     docs = []
     for _, row in players_df.iterrows():
-        def _fmt(val, fmt=".2f"):
-            try:
-                import math
-                if val is None or (isinstance(val, float) and math.isnan(val)):
-                    return "N/A"
-                return format(float(val), fmt)
-            except (TypeError, ValueError):
-                return "N/A"
-
         content = (
             f"Player: {row['web_name']}\n"
             f"Total Points: {row['total_points']}\n"
@@ -118,8 +120,8 @@ def _build_player_docs(players_df: pd.DataFrame) -> list:
             f"Goals: {row['goals_scored']}\n"
             f"Assists: {row['assists']}\n"
             f"Clean Sheets: {row['clean_sheets']}\n"
-            f"xG: {_fmt(row.get('xg_scored'))}\n"
-            f"xA: {_fmt(row.get('xa'))}\n"
+            f"xG: {_fmt_stat(row.get('xg_scored'))}\n"
+            f"xA: {_fmt_stat(row.get('xa'))}\n"
             f"Yellow Cards: {row.get('yellow_cards', 'N/A')}\n"
             f"Red Cards: {row.get('red_cards', 'N/A')}\n"
             f"Saves: {row.get('saves', 'N/A')}\n"

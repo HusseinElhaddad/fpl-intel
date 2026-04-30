@@ -85,8 +85,9 @@ def retrieve(query: str, k: int = 6) -> list[Document]:
 
     # MMR for diversity (fetch up to k, then subtract already-fetched)
     remaining_k = max(1, k - len(results))
+    fetch_k = max(remaining_k * 3, 10)  # ensure enough candidates for effective MMR diversity
     try:
-        mmr_docs = db.max_marginal_relevance_search(query, k=remaining_k, fetch_k=remaining_k * 3)
+        mmr_docs = db.max_marginal_relevance_search(query, k=remaining_k, fetch_k=fetch_k)
         # Avoid duplicates
         seen = {d.page_content for d in results}
         for doc in mmr_docs:
