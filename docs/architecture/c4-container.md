@@ -3,51 +3,66 @@
 Inside the FPL-Intel system there are two long-running processes (the Streamlit UI and the planned chat backend), four logical services that run as Python modules (Orchestrator, RAG, ML, NLU), and three persistent stores. The diagram below shows them and the calls between them.
 
 ```mermaid
-C4Container
-    title Container Diagram — FPL-Intel
+flowchart TB
+    user["<b>FPL Manager</b><br/><span style='font-size:11px'>[Person]</span>"]:::person
 
-    Person(user, "FPL Manager")
+    subgraph fpl ["<b>FPL-Intel</b>"]
+        direction TB
 
-    System_Boundary(fpl, "FPL-Intel") {
-        Container(ui, "Streamlit UI", "Python / Streamlit", "Chat, Search, Compare, Dashboard tabs. Posts queries to the orchestrator and renders results.")
-        Container(orchestrator, "Orchestrator", "Python module", "classify_intent → route to ML or RAG handler. Single entry point for any query.")
-        Container(rag, "RAG Service", "Python / LangChain", "Retrieve top-k docs from Chroma, build prompt, call Gemini, return answer.")
-        Container(ml, "ML Service", "Python / XGBoost", "Loads pickled model, runs predictions on a feature CSV, returns predicted points.")
-        Container(indexer, "Vector Store Builder", "Python / LangChain", "Offline job. Reads SQLite, chunks news, embeds, writes Chroma.")
-        Container(features, "Feature Pipeline", "Python / pandas", "Offline job. Reads SQLite, engineers 28 features, writes CSV.")
-        Container(trainer, "Model Trainer", "Python / scikit-learn", "Offline job. Reads CSV, trains XGBoost + RandomForest, writes pickle + reports.")
+        subgraph runtime ["Runtime services (request path)"]
+            direction LR
+            ui["<b>Streamlit UI</b><br/><span style='font-size:11px'>[Streamlit]</span><br/>Chat · Search · Compare · Dashboard tabs.<br/>Posts queries to the orchestrator."]:::container
+            orchestrator["<b>Orchestrator</b><br/><span style='font-size:11px'>[Python module]</span><br/>classify_intent → route to ML or RAG.<br/>Single entry point for any query."]:::container
+            rag["<b>RAG Service</b><br/><span style='font-size:11px'>[Python / LangChain]</span><br/>Retrieve, build prompt, call Gemini,<br/>return answer."]:::container
+            ml["<b>ML Service</b><br/><span style='font-size:11px'>[Python / XGBoost]</span><br/>Loads pickle bundle, runs predictions,<br/>returns predicted points."]:::container
+        end
 
-        ContainerDb(sqlite, "SQLite", "fpl_intel.db", "Source-of-truth tables: players, teams, fixtures, news_articles.")
-        ContainerDb(chroma, "Chroma Vector DB", "fpl_vector_db/", "Persistent HNSW index of news chunks and player cards.")
-        ContainerDb(models, "Model Artifacts", "models/*.pkl", "Pickled XGBoost and RandomForest pipelines + imputers.")
-    }
+        subgraph offline ["Offline pipelines (build-time)"]
+            direction LR
+            features["<b>Feature Pipeline</b><br/><span style='font-size:11px'>[Python / pandas]</span><br/>Reads SQLite, engineers 28 features,<br/>writes CSV."]:::container
+            trainer["<b>Model Trainer</b><br/><span style='font-size:11px'>[Python / sklearn]</span><br/>Reads CSV, trains XGBoost + RF,<br/>writes pickle + reports."]:::container
+            indexer["<b>Vector Store Builder</b><br/><span style='font-size:11px'>[Python / LangChain]</span><br/>Reads SQLite, chunks news, embeds,<br/>writes Chroma."]:::container
+        end
 
-    System_Ext(fplApi, "FPL API", "Public REST API")
-    System_Ext(gemini, "Google Gemini Pro", "Hosted LLM")
-    System_Ext(hf, "HuggingFace Hub", "Model registry")
+        subgraph stores ["Persistent stores"]
+            direction LR
+            sqlite[("<b>SQLite</b><br/><span style='font-size:11px'>[fpl_intel.db]</span><br/>players · teams ·<br/>fixtures · news_articles")]:::store
+            chroma[("<b>Chroma Vector DB</b><br/><span style='font-size:11px'>[fpl_vector_db/]</span><br/>HNSW index of news<br/>chunks + player cards")]:::store
+            models[("<b>Model Artifacts</b><br/><span style='font-size:11px'>[models/*.pkl]</span><br/>Pickled XGBoost +<br/>RandomForest bundles")]:::store
+        end
+    end
 
-    Rel(user, ui, "Uses", "HTTPS")
-    Rel(ui, fplApi, "Fetches live player/team data", "HTTPS / JSON")
-    Rel(ui, orchestrator, "Routes user query", "in-process call")
+    fplApi["<b>FPL API</b><br/><span style='font-size:11px'>[External]</span>"]:::external
+    gemini["<b>Google Gemini Pro</b><br/><span style='font-size:11px'>[External]</span>"]:::external
+    hf["<b>HuggingFace Hub</b><br/><span style='font-size:11px'>[External]</span>"]:::external
 
-    Rel(orchestrator, rag, "intent == 'rag'")
-    Rel(orchestrator, ml, "intent == 'ml'")
+    user -->|"Uses<br/><i>[HTTPS]</i>"| ui
+    ui -->|"Live player/team data<br/><i>[HTTPS / JSON]</i>"| fplApi
+    ui -->|"Routes user query<br/><i>[in-process]</i>"| orchestrator
+    orchestrator -->|"intent == 'rag'"| rag
+    orchestrator -->|"intent == 'ml'"| ml
 
-    Rel(rag, chroma, "similarity_search(k=3)")
-    Rel(rag, gemini, "generate_content(prompt)", "HTTPS")
-    Rel(rag, hf, "loads embedding model (first run)", "HTTPS")
+    rag -->|"similarity_search(k=3)"| chroma
+    rag -->|"generate_content(prompt)<br/><i>[HTTPS]</i>"| gemini
+    rag -->|"loads embedding<br/>model (first run)"| hf
 
-    Rel(ml, models, "loads pickled bundle")
+    ml -->|"loads pickled bundle"| models
 
-    Rel(indexer, sqlite, "SELECT news + players")
-    Rel(indexer, chroma, "writes embeddings")
-    Rel(indexer, hf, "embeds chunks")
+    features -->|"SELECT players,<br/>fixtures, teams"| sqlite
+    features -->|"fpl_features.csv"| trainer
+    trainer -->|"writes pickle bundle<br/>+ reports"| models
+    indexer -->|"SELECT news + players"| sqlite
+    indexer -->|"writes embeddings"| chroma
+    indexer -->|"embeds chunks"| hf
 
-    Rel(features, sqlite, "SELECT * FROM players, fixtures")
-    Rel(features, trainer, "fpl_features.csv")
-    Rel(trainer, models, "writes pickle bundle")
-
-    UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")
+    classDef person fill:#08427b,stroke:#052e56,stroke-width:2px,color:#ffffff
+    classDef container fill:#438dd5,stroke:#2e69a8,stroke-width:1.5px,color:#ffffff
+    classDef store fill:#1168bd,stroke:#0b4884,stroke-width:2px,color:#ffffff
+    classDef external fill:#999999,stroke:#6b6b6b,stroke-width:2px,color:#ffffff
+    style fpl fill:#f5f5f5,stroke:#888,stroke-width:2px,stroke-dasharray:4 4
+    style runtime fill:#eaf3fb,stroke:#a9c6e0,stroke-width:1px
+    style offline fill:#fbf3ea,stroke:#e0c6a9,stroke-width:1px
+    style stores fill:#eaf5ea,stroke:#a9d6a9,stroke-width:1px
 ```
 
 ## Containers, in plain English

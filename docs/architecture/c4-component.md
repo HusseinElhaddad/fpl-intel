@@ -5,45 +5,50 @@ This level zooms inside the two most interesting containers — **Orchestrator**
 ## Components inside Orchestrator + RAG
 
 ```mermaid
-C4Component
-    title Component Diagram — Orchestrator and RAG Service
+flowchart TB
+    ui["<b>Streamlit UI</b><br/><span style='font-size:11px'>[Container]</span>"]:::container
 
-    Container(ui, "Streamlit UI", "Python / Streamlit")
-    ContainerDb(chroma, "Chroma", "fpl_vector_db/")
-    System_Ext(gemini, "Google Gemini Pro", "Hosted LLM")
-    System_Ext(hf, "HuggingFace Hub", "Embedding weights")
+    subgraph orch ["<b>Orchestrator</b> — Container"]
+        direction TB
+        router["<b>Router</b><br/><span style='font-size:11px'>[function route(query)]</span><br/>Top-level dispatcher.<br/>Calls intent classifier,<br/>forwards to handler."]:::component
+        intent["<b>Intent Classifier</b><br/><span style='font-size:11px'>[classify_intent(query)]</span><br/>Keyword-based:<br/>'injury' → rag,<br/>else → ml."]:::component
+        mlAdapter["<b>ML Adapter</b><br/><span style='font-size:11px'>[predict_points · planned]</span><br/>Wraps the ML service.<br/>Import target is a stub today."]:::component
+        ragAdapter["<b>RAG Adapter</b><br/><span style='font-size:11px'>[get_news_answer · stub]</span><br/>1-line stub today.<br/>Real entry: generate_answer."]:::component
+    end
 
-    Container_Boundary(orch, "Orchestrator") {
-        Component(router, "Router", "function route(query)", "Top-level dispatcher. Calls the intent classifier and forwards to the matching handler.")
-        Component(intent, "Intent Classifier", "function classify_intent(query)", "Keyword-based: returns 'rag' if 'injury' is in the query, otherwise 'ml'.")
-        Component(mlAdapter, "ML Adapter", "predict_points (planned)", "Wraps the ML service. Today this import target is a stub; the working ML path is the predict.py CLI.")
-        Component(ragAdapter, "RAG Adapter", "get_news_answer (stub)", "1-line stub today. The real RAG entry point is rag_system.generate_answer.")
-    }
+    subgraph rag ["<b>RAG Service</b> — Container"]
+        direction TB
+        retriever["<b>Retriever</b><br/><span style='font-size:11px'>[retrieve(query, k)]</span><br/>Calls Chroma similarity_search,<br/>returns top-k Documents."]:::component
+        promptBuilder["<b>Prompt Builder</b><br/><span style='font-size:11px'>[inline template]</span><br/>Stitches retrieved chunks into<br/>system + context + question."]:::component
+        geminiClient["<b>Gemini Client</b><br/><span style='font-size:11px'>[google.genai.Client]</span><br/>HTTPS client for gemini-pro.<br/>Reads GOOGLE_API_KEY from env."]:::component
+        embedder["<b>Embedder</b><br/><span style='font-size:11px'>[HuggingFaceEmbeddings]</span><br/>all-MiniLM-L6-v2.<br/>Used for indexing + queries."]:::component
+        chromaHandle["<b>Chroma Handle</b><br/><span style='font-size:11px'>[langchain_chroma.Chroma]</span><br/>Persistent client bound to<br/>fpl_vector_db/ + 'fpl_rag'."]:::component
+    end
 
-    Container_Boundary(rag, "RAG Service") {
-        Component(retriever, "Retriever", "function retrieve(query, k)", "Calls Chroma similarity_search and returns top-k Documents.")
-        Component(promptBuilder, "Prompt Builder", "inline template", "Stitches retrieved chunks into a fixed system+context+question prompt.")
-        Component(geminiClient, "Gemini Client", "google.genai.Client", "HTTPS client for gemini-pro. Reads GOOGLE_API_KEY from env.")
-        Component(embedder, "Embedder", "HuggingFaceEmbeddings", "all-MiniLM-L6-v2. Used for both indexing and query-time embedding.")
-        Component(chromaHandle, "Chroma Handle", "langchain_chroma.Chroma", "Persistent client bound to fpl_vector_db/ + collection 'fpl_rag'.")
-    }
+    chromaStore[("<b>Chroma</b><br/>fpl_vector_db/")]:::store
+    gemini["<b>Google Gemini Pro</b><br/><span style='font-size:11px'>[External]</span>"]:::external
+    hf["<b>HuggingFace Hub</b><br/><span style='font-size:11px'>[External]</span>"]:::external
 
-    Rel(ui, router, "route(query)")
-    Rel(router, intent, "classify_intent(query)")
-    Rel(router, mlAdapter, "intent == 'ml'")
-    Rel(router, ragAdapter, "intent == 'rag'")
+    ui -->|"route(query)"| router
+    router -->|"classify_intent(query)"| intent
+    router -->|"intent == 'ml'"| mlAdapter
+    router -->|"intent == 'rag'"| ragAdapter
 
-    Rel(ragAdapter, retriever, "delegate (intended)")
-    Rel(retriever, chromaHandle, "similarity_search(query, k=3)")
-    Rel(chromaHandle, chroma, "HNSW search")
-    Rel(retriever, embedder, "embeds query")
-    Rel(embedder, hf, "load model (first run)")
+    ragAdapter -.->|"delegate<br/>(intended)"| retriever
+    retriever -->|"similarity_search<br/>(query, k=3)"| chromaHandle
+    chromaHandle -->|"HNSW search"| chromaStore
+    retriever -->|"embeds query"| embedder
+    embedder -->|"load model<br/>(first run)"| hf
+    retriever -->|"top-k Documents"| promptBuilder
+    promptBuilder -->|"prompt string"| geminiClient
+    geminiClient -->|"generate_content(prompt)"| gemini
 
-    Rel(retriever, promptBuilder, "top-k Documents")
-    Rel(promptBuilder, geminiClient, "prompt string")
-    Rel(geminiClient, gemini, "generate_content(prompt)")
-
-    UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")
+    classDef container fill:#438dd5,stroke:#2e69a8,stroke-width:1.5px,color:#ffffff
+    classDef component fill:#85bbf0,stroke:#5d82a8,stroke-width:1px,color:#000000
+    classDef store fill:#1168bd,stroke:#0b4884,stroke-width:2px,color:#ffffff
+    classDef external fill:#999999,stroke:#6b6b6b,stroke-width:2px,color:#ffffff
+    style orch fill:#eaf3fb,stroke:#a9c6e0,stroke-width:1.5px
+    style rag fill:#fbf3ea,stroke:#e0c6a9,stroke-width:1.5px
 ```
 
 ## Component-by-component
