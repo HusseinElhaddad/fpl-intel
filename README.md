@@ -1,34 +1,89 @@
 # FPL-Intel PRO ⚽
 
-## Project Overview
-FPL-Intel PRO is a Premier League AI Platform designed to help Fantasy Premier League (FPL) managers make data-driven decisions. It combines machine learning predictions with real-time news retrieval to provide accurate point predictions and actionable advice.
+FPL-Intel PRO is a cutting-edge AI platform for Fantasy Premier League (FPL) managers. It combines advanced Machine Learning predictions with a Retrieval-Augmented Generation (RAG) system to provide data-driven insights and real-time news analysis.
 
-## Architecture
-- **ML Pipeline**: Uses Random Forest/XGBoost to predict player points based on historical FPL data.
-- **RAG Pipeline**: Leverages LangChain and a vector database (ChromaDB) to retrieve the latest player news and injury updates.
-- **NLU Router**: Intelligently classifies user queries to route them to the ML pipeline, the RAG pipeline, or both for a comprehensive response.
-- **Orchestrator**: Acts as the central hub, tying NLU, ML, and RAG together.
-- **UI**: A Streamlit dashboard for interactive chatting, searching, comparing players, and viewing analytics.
+## 🚀 Key Features
+- **Predictive Analytics**: XGBoost-powered point predictions based on historical performance and fixture difficulty.
+- **Real-Time News (RAG)**: Instant answers about injuries, transfer news, and press conferences using a local vector database.
+- **Intelligent Routing**: NLU-based intent classification that automatically chooses between ML stats or RAG news.
+- **Interactive Dashboard**: A premium Streamlit UI with player comparisons, prediction charts, and a smart chat assistant.
 
-## Setup Steps
-1. Clone the repository.
-2. Create and activate a virtual environment (optional but recommended).
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+---
 
-## Run Instructions
-Launch the Streamlit application:
+## 🛠 Architecture
+The system is built on a modular internal architecture for high performance and low latency:
+- **ML Engine**: `ml/` - Feature engineering, XGBoost training, and inference.
+- **RAG Engine**: `rag/` + `rag_system.py` - ChromaDB vector store + Groq/Llama 3.3 for lightning-fast news retrieval.
+- **NLU Router**: `nlu/` - Classifies user queries into `ml`, `news`, or `general` intents.
+- **Orchestrator**: `orchestrator/router.py` - The unified interface connecting all specialized modules.
+- **UI Layer**: `app/main.py` - The user-facing Streamlit application.
+
+---
+
+## ⚙️ Setup & Installation
+
+### 1. Prerequisites
+- Python 3.10+ (Recommended 3.11)
+- A **Groq API Key** (Free tier available at [console.groq.com](https://console.groq.com))
+
+### 2. Installation
+```bash
+# Clone the repository
+git clone https://github.com/HusseinElhaddad/fpl-intel.git
+cd fpl-intel
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows use: venv\Scripts\activate
+
+# Install dependencies (Optimized for NumPy 2.x)
+pip install -r requirements.txt
+```
+
+### 3. Environment Configuration
+Create a `.env` file in the root directory:
+```text
+GROQ_API_KEY=your_groq_api_key_here
+```
+
+---
+
+## 🏃 Running the System
+
+### Launching the Dashboard
 ```bash
 streamlit run app/main.py
 ```
-Open your browser at `http://localhost:8501`.
 
-## Team Responsibilities
-- **ML**: Feature engineering, model training, and point predictions (`ml/`).
-- **RAG**: Document ingestion, vector database management, and news generation (`rag/`).
-- **NLU**: Intent classification to route user queries correctly (`nlu/`).
-- **Data**: Fetching data from the FPL API and scraping news (`data/`, `pipeline/`).
-- **UI**: Building the Streamlit dashboard and visual analytics (`app/`).
-- **Orchestrator**: Routing logic and integrating all modules (`orchestrator/`).
+### Initializing Data (Optional)
+If you need to rebuild the databases or train the models from scratch:
+```bash
+# 1. Generate features from SQLite DB
+python ml/features.py
+
+# 2. Train the XGBoost model
+python ml/train.py
+
+# 3. Build/Update the News Vector Store
+python build_vector_store.py
+```
+
+---
+
+## 📄 Deployment
+This project is configured for **Streamlit Community Cloud**. 
+- **Branch**: `dev`
+- **Main file**: `app/main.py`
+- **Secrets**: Ensure `GROQ_API_KEY` is added to your Streamlit Cloud secrets.
+
+---
+
+## ⚠️ Troubleshooting
+- **NumPy Errors**: If you see `No module named 'numpy._core'`, ensure you are using NumPy 2.0+ and SciPy 1.13+. Run `pip install --upgrade numpy scipy` to fix.
+- **Groq Errors**: If a model is decommissioned, update `rag_system.py` to use the latest supported model (e.g., `llama-3.3-70b-versatile`).
+
+---
+
+## 👥 Contributors
+- **Hussein Elhaddad** (Project Lead & Integration)
+- *Developed for Level 3 ML Project*
