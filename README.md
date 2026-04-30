@@ -1,5 +1,7 @@
 # FPL-Intel PRO ⚽
 
+**Live App:** [fpl-intel.streamlit.app](https://fpl-intel.streamlit.app/)
+
 FPL-Intel PRO is a cutting-edge AI platform for Fantasy Premier League (FPL) managers. It combines advanced Machine Learning predictions with a Retrieval-Augmented Generation (RAG) system to provide data-driven insights and real-time news analysis.
 
 ## 🚀 Key Features
