@@ -40,7 +40,7 @@ def predict_points(query):
         if(found == ""):
             return {
                 "player": query,
-                "predicted_points": 0.0,
+                "predicted_points": 0,
                 "news": "Player not found",
                 "advice": "Please retrain the ML model."
             }
@@ -51,21 +51,21 @@ def predict_points(query):
         
         return {
             "player": query,
-            "predicted_points": model.predict(data_imputed)[0],
+            "predicted_points": round(model.predict(data_imputed)[0]),
             "news": "Model loaded successfully",
             "advice": "Good choice"
         }
     except EOFError:
         return {
             "player": query,
-            "predicted_points": 5.0,
+            "predicted_points": 5,
             "news": "Fallback: Model file is empty.",
             "advice": "Please retrain the ML model."
         }
     except Exception as e:
         return {
             "player": query,
-            "predicted_points": 0.0,
+            "predicted_points": 0,
             "news": "Error loading model",
             "advice": str(e)
         }
