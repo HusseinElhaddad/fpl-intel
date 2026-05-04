@@ -13,6 +13,53 @@ from orchestrator.router import route
 # CONFIG
 # -----------------------------
 st.set_page_config(page_title="FPL-Intel PRO", layout="wide")
+
+# -----------------------------
+# AUTO-INITIALIZE ML PIPELINE
+# On Streamlit Cloud, the DB, CSV, and model files
+# don't exist (gitignored). This bootstraps them once.
+# -----------------------------
+@st.cache_resource(show_spinner="🔄 Initializing ML pipeline (first run only)...")
+def _bootstrap_ml_pipeline():
+    """Fetch FPL data → engineer features → train model. Runs once per deploy."""
+    import pickle
+    from pathlib import Path
+
+    db_path = os.path.join(os.path.dirname(__file__), "..", "fpl_intel.db")
+    model_path = os.path.join(os.path.dirname(__file__), "..", "models", "fpl_xgboost.pkl")
+
+    # Step 1: Build DB if missing or empty
+    if not os.path.exists(db_path) or os.path.getsize(db_path) < 1000:
+        print("[Bootstrap] Fetching FPL API data...")
+        from pipeline.fpl_api import run as fetch_fpl
+        fetch_fpl(db_path)
+
+    # Step 2: Generate features if CSVs missing
+    features_csv = os.path.join(os.path.dirname(__file__), "..", "data", "fpl_features.csv")
+    if not os.path.exists(features_csv):
+        print("[Bootstrap] Running feature engineering...")
+        os.makedirs(os.path.dirname(features_csv), exist_ok=True)
+        from ml.features import feature_engineering
+        feature_engineering()
+
+    # Step 3: Train model if .pkl missing
+    if not os.path.exists(model_path):
+        print("[Bootstrap] Training ML model...")
+        os.makedirs(os.path.dirname(model_path), exist_ok=True)
+        # Import and run train.py by executing it as a subprocess
+        # (it uses top-level statements, not a function)
+        import subprocess
+        root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        subprocess.run(
+            [sys.executable, "ml/train.py"],
+            cwd=root,
+            check=True,
+        )
+
+    return True
+
+_bootstrap_ml_pipeline()
+
 st.title("⚽ FPL-Intel PRO: Premier League AI Platform")
 
 # -----------------------------
@@ -178,7 +225,7 @@ with tab3:
 
         fig = px.bar(df, x="Metric", y=[p1_name, p2_name], barmode="group",
                      title="Player Comparison")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
 
 # =====================================================
 # 📊 PRO DASHBOARD
@@ -205,7 +252,7 @@ with tab4:
                 title="Points per Gameweek",
                 markers=True
             )
-            st.plotly_chart(fig1, use_container_width=True)
+            st.plotly_chart(fig1, width='stretch')
 
             # -----------------------------
             # Goals & Assists
@@ -216,7 +263,7 @@ with tab4:
                 y=["goals_scored", "assists"],
                 title="Goals & Assists Trend"
             )
-            st.plotly_chart(fig2, use_container_width=True)
+            st.plotly_chart(fig2, width='stretch')
 
             # -----------------------------
             # Minutes Played
@@ -227,7 +274,7 @@ with tab4:
                 y="minutes",
                 title="Minutes Played"
             )
-            st.plotly_chart(fig3, use_container_width=True)
+            st.plotly_chart(fig3, width='stretch')
 
             # -----------------------------
             # Form (Moving Average)
@@ -240,7 +287,7 @@ with tab4:
                 y="form",
                 title="Form Trend (3 GW Avg)"
             )
-            st.plotly_chart(fig4, use_container_width=True)
+            st.plotly_chart(fig4, width='stretch')
 
             # -----------------------------
             # Best Performance
