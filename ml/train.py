@@ -1,4 +1,4 @@
-#inputs : fpl_features.csv(data)
+#inputs : fpl_features.csv, model_df.csv
 """
   outputs:
     models:
@@ -57,6 +57,7 @@ print("1. loading data")
 print("=" * 60)
 
 active = pd.read_csv("data/fpl_features.csv")
+model_df = pd.read_csv("data/model_df.csv")
 print("Data is loaded")
 
 print("\n" + "=" * 60)
@@ -83,18 +84,8 @@ FEATURE_COLS = [
     # Position (one-hot)
     "pos_DEF", "pos_FWD", "pos_GKP", "pos_MID",
 ]
+TARGET="total_points"
 
-# Ensure all pos_ cols exist
-for col in ["pos_DEF", "pos_FWD", "pos_GKP", "pos_MID"]:
-    if col not in active.columns:
-        active[col] = 0
-
-TARGET = "total_points"
-
-_extra = [c for c in [TARGET, "web_name", "position_name", "short_name", "price"] if c not in FEATURE_COLS]
-model_df = active[FEATURE_COLS + _extra].copy().reset_index(drop=True)
-for _col in FEATURE_COLS:
-    model_df[_col] = pd.to_numeric(model_df[_col], errors="coerce")
 
 # Impute remaining NaNs
 imp = SimpleImputer(strategy="median")

@@ -8,52 +8,52 @@
       "CV_MAE": 6.078
     },
     "XGBoost": {
-      "MAE": 5.0578,
-      "RMSE": 7.1317,
-      "R2": 0.9737,
-      "CV_MAE": 5.5236
+      "MAE": 4.8875,
+      "RMSE": 7.107,
+      "R2": 0.9738,
+      "CV_MAE": 5.5047
     }
   },
   "top_features": [
     {
-      "feature": "avg_minutes_per_gw",
-      "importance": 0.38399553298950195
+      "feature": "appearance_rate",
+      "importance": 0.42110124230384827
     },
     {
-      "feature": "minutes",
-      "importance": 0.23017741739749908
+      "feature": "avg_minutes_per_gw",
+      "importance": 0.26445919275283813
     },
     {
       "feature": "ict_index",
-      "importance": 0.17707812786102295
+      "importance": 0.11546991020441055
+    },
+    {
+      "feature": "minutes",
+      "importance": 0.087816022336483
     },
     {
       "feature": "bonus",
-      "importance": 0.06529355049133301
+      "importance": 0.0332212932407856
     },
     {
       "feature": "clean_sheets",
-      "importance": 0.04510197788476944
+      "importance": 0.0290145892649889
     },
     {
       "feature": "bonus_per_90",
-      "importance": 0.018582109361886978
-    },
-    {
-      "feature": "appearance_rate",
-      "importance": 0.011651958338916302
-    },
-    {
-      "feature": "goals_scored",
-      "importance": 0.011228504590690136
+      "importance": 0.01031089574098587
     },
     {
       "feature": "gc_per_90",
-      "importance": 0.010018150322139263
+      "importance": 0.006082089617848396
     },
     {
-      "feature": "form",
-      "importance": 0.004585883114486933
+      "feature": "goals_scored",
+      "importance": 0.0052335080690681934
+    },
+    {
+      "feature": "goals_per_90",
+      "importance": 0.0032930930610746145
     }
   ],
   "dataset": {
