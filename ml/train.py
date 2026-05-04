@@ -65,11 +65,10 @@ print("2. SELECTING FEATURES & TARGET")
 print("=" * 60)
 
 FEATURE_COLS = [
-    # Core stats
-    "minutes", "avg_minutes_per_gw", "appearance_rate",
-        "goals_scored", "assists", "clean_sheets", "bonus",
+    # Core stats (per-90 rates — no leakage)
+    "avg_minutes_per_gw", "appearance_rate",
     "goals_per_90", "assists_per_90", "cs_per_90", "bonus_per_90",
-    "gc_per_90", "ict_index", "ict_per_90",
+    "gc_per_90", "ict_per_90",
     # Form & ownership
     "form", "ownership",
     # Price
@@ -84,7 +83,7 @@ FEATURE_COLS = [
     # Position (one-hot)
     "pos_DEF", "pos_FWD", "pos_GKP", "pos_MID",
 ]
-TARGET="total_points"
+TARGET = "xP"
 
 
 # Impute remaining NaNs
@@ -219,15 +218,15 @@ def fpl_style(fig, axes_list=None):
                 spine.set_edgecolor("#5a0080")
 # ── VIZ 1: Points distribution by position ──────────────────────────────────
 fig, axes = plt.subplots(1, 4, figsize=(16, 5))
-fig.suptitle("Total Points Distribution by Position", color=FPL_GREEN, fontsize=14, fontweight="bold")
+fig.suptitle("Expected Points (xP) Distribution by Position", color=FPL_GREEN, fontsize=14, fontweight="bold")
 fpl_style(fig, axes)
 
 pos_colors = {"GKP": FPL_CYAN, "DEF": FPL_GREEN, "MID": "#ffcc00", "FWD": FPL_PINK}
 for ax, pos in zip(axes, ["GKP", "DEF", "MID", "FWD"]):
-    data = active[active["position_name"] == pos]["total_points"]
+    data = active[active["position_name"] == pos]["xP"]
     ax.hist(data, bins=20, color=pos_colors[pos], edgecolor=FPL_PURPLE, alpha=0.9)
     ax.set_title(pos)
-    ax.set_xlabel("Total Points")
+    ax.set_xlabel("Expected Points (xP)")
     ax.set_ylabel("Players")
     ax.axvline(data.mean(), color="white", linestyle="--", linewidth=1.5, label=f"Mean: {data.mean():.0f}")
     ax.legend(fontsize=8, labelcolor=ACCENT, facecolor="#2a0040")
@@ -268,8 +267,8 @@ for ax, (name, model) in zip(axes, trained_models.items()):
     ax.scatter(y_test, y_pred_scatter, alpha=0.5, s=20, color=FPL_CYAN, edgecolors="none")
     mn, mx = min(y_test.min(), y_pred_scatter.min()), max(y_test.max(), y_pred_scatter.max())
     ax.plot([mn, mx], [mn, mx], color=FPL_PINK, linewidth=2, linestyle="--", label="Perfect fit")
-    ax.set_xlabel("Actual Points")
-    ax.set_ylabel("Predicted Points")
+    ax.set_xlabel("Actual xP")
+    ax.set_ylabel("Predicted xP")
     ax.set_title(f"{name}\nMAE={results[name]['MAE']:.2f}  R²={results[name]['R2']:.3f}")
     ax.legend(fontsize=8, labelcolor=ACCENT, facecolor="#2a0040")
 
@@ -380,8 +379,8 @@ enriched = enriched.join(active[["team_id","ownership","form","minutes",
                                   "team_avg_goals_scored","team_avg_goals_conceded",
                                   "form_tier","ownership_tier","total_points"]].reset_index(drop=True))
 
-enriched["predicted_points"] = np.round(y_pred_all, 2)
-enriched["value_score"]      = np.round(enriched["predicted_points"] / enriched["price"], 3)
+enriched["predicted_xP"] = np.round(np.clip(y_pred_all, 0, 15), 2)
+enriched["value_score"]  = np.round(enriched["predicted_xP"] / enriched["price"], 3)
 
 # Compute a composite RAG recommendation score (0-100)
 # Weights: predicted pts 40%, value 20%, form 15%, fixture ease 15%, availability 10%
@@ -390,11 +389,11 @@ def normalize(s):
     return (s - mn) / (mx - mn + 1e-9)
 
 enriched["rag_score"] = (
-    normalize(enriched["predicted_points"]) * 40 +
-    normalize(enriched["value_score"])      * 20 +
-    normalize(enriched["form"])             * 15 +
-    normalize(enriched["fixture_ease"])     * 15 +
-    enriched["is_available"].astype(float)  * 10
+    normalize(enriched["predicted_xP"]) * 40 +
+    normalize(enriched["value_score"])  * 20 +
+    normalize(enriched["form"])         * 15 +
+    normalize(enriched["fixture_ease"]) * 15 +
+    enriched["is_available"].astype(float) * 10
 ).round(2)
 
 enriched = enriched.sort_values("rag_score", ascending=False)
@@ -403,14 +402,14 @@ enriched = enriched.sort_values("rag_score", ascending=False)
 # ── VIZ 7: Price vs Predicted Points (value map) ────────────────────────────
 fig, ax = plt.subplots(figsize=(12, 7))
 fpl_style(fig, [ax])
-fig.suptitle("Price vs Predicted Points — Value Map", color=FPL_GREEN, fontsize=13, fontweight="bold")
+fig.suptitle("Price vs Predicted xP — Value Map", color=FPL_GREEN, fontsize=13, fontweight="bold")
 
 pos_colors_map = {"GKP": FPL_CYAN, "DEF": FPL_GREEN, "MID": "#ffcc00", "FWD": FPL_PINK}
 for pos in ["GKP", "DEF", "MID", "FWD"]:
     mask = enriched["position_name"] == pos
     ax.scatter(
         enriched.loc[mask, "price"],
-        enriched.loc[mask, "predicted_points"],
+        enriched.loc[mask, "predicted_xP"],
         label=pos, color=pos_colors_map[pos],
         alpha=0.7, s=40, edgecolors="none"
     )
@@ -418,13 +417,13 @@ for pos in ["GKP", "DEF", "MID", "FWD"]:
 # Label top 5 overall
 for _, row in enriched.head(5).iterrows():
     ax.annotate(row["web_name"],
-                (row["price"], row["predicted_points"]),
+                (row["price"], row["predicted_xP"]),
                 textcoords="offset points", xytext=(5, 5),
                 color=ACCENT, fontsize=7,
                 bbox=dict(boxstyle="round,pad=0.2", facecolor=FPL_PURPLE, edgecolor="#5a0080"))
 
 ax.set_xlabel("Price (£m)")
-ax.set_ylabel("Predicted Points")
+ax.set_ylabel("Predicted xP")
 ax.set_title("Spot undervalued picks below the trend line", color=FPL_GREEN)
 ax.legend(facecolor="#2a0040", labelcolor=ACCENT, fontsize=9)
 
@@ -439,7 +438,7 @@ print("  Saved: viz7_price_vs_predicted.png")
 fig, axes = plt.subplots(1, len(trained_models), figsize=(6 * len(trained_models), 5))
 if len(trained_models) == 1:
     axes = [axes]
-fig.suptitle("Confusion Matrix — High Scorer Classification (above median points)",
+fig.suptitle("Confusion Matrix — High xP Classification (above median xP)",
              color=FPL_GREEN, fontsize=12, fontweight="bold")
 fpl_style(fig, axes)
 
@@ -498,53 +497,9 @@ print("\nTop 5 by position:")
 for pos in ["GKP", "DEF", "MID", "FWD"]:
     top = enriched[enriched["position_name"] == pos].head(5)
     print(f"\n  {pos}:")
-    print(top[["web_name","short_name","price","form","predicted_points","value_score","rag_score"]].to_string(index=False))
+    print(top[["web_name","short_name","price","form","predicted_xP","value_score","rag_score"]].to_string(index=False))
 
-# ─────────────────────────────────────────────
-# 9. GENERATE PLAYER PREDICTIONS + RAG CSV
-# ─────────────────────────────────────────────
-print("\n" + "=" * 60)
-print("7. GENERATING PLAYER PREDICTIONS")
-print("=" * 60)
- 
-X_all      = X_imp  # already imputed full dataset
-y_pred_all = best_model.predict(pd.DataFrame(X_all, columns=FEATURE_COLS))
- 
-enriched = model_df[["web_name", "position_name", "short_name", "price"]].copy().reset_index(drop=True)
-enriched = enriched.join(active[["team_id","ownership","form","minutes",
-                                  "goals_scored","assists","clean_sheets",
-                                  "bonus","ict_index","has_injury_news",
-                                  "is_available","pts_per_90","pts_per_million",
-                                  "gc_per_90","appearance_rate",
-                                  "fixture_ease","avg_opp_strength","fixture_count",
-                                  "team_avg_goals_scored","team_avg_goals_conceded",
-                                  "form_tier","ownership_tier","total_points"]].reset_index(drop=True))
- 
-enriched["predicted_points"] = np.round(y_pred_all, 2)
-enriched["value_score"]      = np.round(enriched["predicted_points"] / enriched["price"], 3)
- 
-# Compute a composite RAG recommendation score (0-100)
-# Weights: predicted pts 40%, value 20%, form 15%, fixture ease 15%, availability 10%
-def normalize(s):
-    mn, mx = s.min(), s.max()
-    return (s - mn) / (mx - mn + 1e-9)
- 
-enriched["rag_score"] = (
-    normalize(enriched["predicted_points"]) * 40 +
-    normalize(enriched["value_score"])      * 20 +
-    normalize(enriched["form"])             * 15 +
-    normalize(enriched["fixture_ease"])     * 15 +
-    enriched["is_available"].astype(float)  * 10
-).round(2)
- 
-enriched = enriched.sort_values("rag_score", ascending=False)
- 
-# Position-wise top picks
-print("\nTop 5 by position:")
-for pos in ["GKP", "DEF", "MID", "FWD"]:
-    top = enriched[enriched["position_name"] == pos].head(5)
-    print(f"\n  {pos}:")
-    print(top[["web_name","short_name","price","form","predicted_points","value_score","rag_score"]].to_string(index=False))
+# (duplicate block removed — enriched already computed above)
  
 # ─────────────────────────────────────────────
 # 10. EXPORT

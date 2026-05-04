@@ -88,11 +88,15 @@ def feature_engineering(player_name = ""):
         left_on="team_id", right_on="id", suffixes=("", "_team")
     )
     
+    # --- Count finished GWs to normalize per-GW stats ---
+    finished_gws = fixtures[fixtures["finished"] == 1]["gameweek"].nunique()
+    finished_gws = max(finished_gws, 1)  # Avoid division by zero
+    print(f"Finished GWs: {finished_gws}")
+
     # --- Appearance rate (proxy for consistency) ---
-    # GW range: full season = 38 GW, max possible minutes per GW = 90
-    MAX_MINUTES = 38 * 90
+    MAX_MINUTES = finished_gws * 90
     active["appearance_rate"] = active["minutes"] / MAX_MINUTES          # 0-1 scale
-    active["avg_minutes_per_gw"] = active["minutes"] / 38               # avg mins per GW
+    active["avg_minutes_per_gw"] = active["minutes"] / finished_gws      # avg mins per GW
     
     # --- Points efficiency ---
     active["pts_per_90"]        = np.where(
@@ -102,6 +106,9 @@ def feature_engineering(player_name = ""):
     )
     active["pts_per_million"]   = active["total_points"] / active["price"]
     
+    # --- Per-GW average points (the core signal) ---
+    active["pts_per_gw"] = active["total_points"] / finished_gws
+
     # --- Goal contributions ---
     active["goal_contributions"] = active["goals_scored"] + active["assists"]
     active["gc_per_90"]          = np.where(
@@ -135,8 +142,6 @@ def feature_engineering(player_name = ""):
     )
     
     # --- ICT breakdown proxy (FPL ICT is composite: Influence, Creativity, Threat) ---
-    # Threat correlates with goals for FWDs/MIDs, Creativity with assists
-    # We can't split ICT without the raw endpoint, but we can normalize it
     active["ict_per_90"] = np.where(
         active["minutes"] > 0,
         active["ict_index"] / (active["minutes"] / 90),
@@ -144,7 +149,6 @@ def feature_engineering(player_name = ""):
     )
     
     # --- Form signal (recent 6-GW rolling avg provided by FPL API) ---
-    # Encode form as numeric; handle potential string values
     active["form"] = pd.to_numeric(active["form"], errors="coerce").fillna(0)
     active["form_tier"] = pd.cut(
         active["form"],
@@ -213,16 +217,45 @@ def feature_engineering(player_name = ""):
     # Fixture difficulty score: low opponent strength = easy = lower number = good
     active["fixture_ease"] = (6 - active["avg_opp_strength"]).clip(lower=0)  # 1=hard, 4=easy
     
+    # ─── ROLLING EXPECTED POINTS (xP) TARGET ──────────────────────────────────────
+    # xP represents what a player is expected to score in the NEXT gameweek
+    # based on their per-90 production rate, minutes consistency, and fixture ease.
+    #
+    # Formula: xP = pts_per_90 * (avg_minutes_per_gw / 90) * fixture_ease_factor
+    # Where fixture_ease_factor scales the baseline so easier fixtures = more points
+    
+    # Normalize fixture_ease to a multiplier centered around 1.0
+    mean_ease = active["fixture_ease"].mean()
+    mean_ease = max(mean_ease, 1e-9)  # avoid div-by-zero
+    active["fixture_ease_factor"] = active["fixture_ease"] / mean_ease
+
+    # Compute xP
+    active["xP"] = (
+        active["pts_per_90"]
+        * (active["avg_minutes_per_gw"] / 90)
+        * active["fixture_ease_factor"]
+    ).round(2)
+
+    # Apply injury/availability penalty
+    active.loc[active["has_injury_news"] == 1, "xP"] *= 0.3
+    active.loc[~active["is_available"], "xP"] *= 0.1
+
+    # Clamp xP to reasonable range (0–15 per GW)
+    active["xP"] = active["xP"].clip(lower=0, upper=15)
+
+    print(f"xP stats: mean={active['xP'].mean():.2f}, "
+          f"median={active['xP'].median():.2f}, "
+          f"max={active['xP'].max():.2f}")
+    
     # --- Position dummies ---
     pos_dummies = pd.get_dummies(active["position_name"], prefix="pos")
     active = pd.concat([active, pos_dummies], axis=1)
     
     FEATURE_COLS = [
-        # Core stats
-        "minutes", "avg_minutes_per_gw", "appearance_rate",
-            "goals_scored", "assists", "clean_sheets", "bonus",
+        # Core stats (per-90 rates — no leakage)
+        "avg_minutes_per_gw", "appearance_rate",
         "goals_per_90", "assists_per_90", "cs_per_90", "bonus_per_90",
-        "gc_per_90", "ict_index", "ict_per_90",
+        "gc_per_90", "ict_per_90",
         # Form & ownership
         "form", "ownership",
         # Price
@@ -237,14 +270,15 @@ def feature_engineering(player_name = ""):
         # Position (one-hot)
         "pos_DEF", "pos_FWD", "pos_GKP", "pos_MID",
     ]
-    TARGET="total_points"
+    TARGET = "xP"
 
-        # Ensure all pos_ cols exist
+    # Ensure all pos_ cols exist
     for col in ["pos_DEF", "pos_FWD", "pos_GKP", "pos_MID"]:
         if col not in active.columns:
             active[col] = 0
 
-    _extra = [c for c in [TARGET, "web_name", "position_name", "short_name", "price"] if c not in FEATURE_COLS]
+    _extra = [c for c in [TARGET, "web_name", "position_name", "short_name", "price",
+                           "total_points", "pts_per_gw"] if c not in FEATURE_COLS]
     model_df = active[FEATURE_COLS + _extra].copy().reset_index(drop=True)
     for _col in FEATURE_COLS:
         model_df[_col] = pd.to_numeric(model_df[_col], errors="coerce")
