@@ -2,63 +2,63 @@
   "best_model": "XGBoost",
   "metrics": {
     "RandomForest": {
-      "MAE": 6.0985,
-      "RMSE": 8.9492,
-      "R2": 0.9585,
-      "CV_MAE": 6.078
+      "MAE": 0.344,
+      "RMSE": 0.5108,
+      "R2": 0.8759,
+      "CV_MAE": 0.3418
     },
     "XGBoost": {
-      "MAE": 4.8875,
-      "RMSE": 7.107,
-      "R2": 0.9738,
-      "CV_MAE": 5.5047
+      "MAE": 0.2373,
+      "RMSE": 0.3623,
+      "R2": 0.9376,
+      "CV_MAE": 0.2472
     }
   },
   "top_features": [
     {
       "feature": "appearance_rate",
-      "importance": 0.42110124230384827
+      "importance": 0.2679775357246399
+    },
+    {
+      "feature": "has_injury_news",
+      "importance": 0.25796547532081604
     },
     {
       "feature": "avg_minutes_per_gw",
-      "importance": 0.26445919275283813
+      "importance": 0.1712588518857956
     },
     {
-      "feature": "ict_index",
-      "importance": 0.11546991020441055
-    },
-    {
-      "feature": "minutes",
-      "importance": 0.087816022336483
-    },
-    {
-      "feature": "bonus",
-      "importance": 0.0332212932407856
-    },
-    {
-      "feature": "clean_sheets",
-      "importance": 0.0290145892649889
+      "feature": "form",
+      "importance": 0.1390523910522461
     },
     {
       "feature": "bonus_per_90",
-      "importance": 0.01031089574098587
+      "importance": 0.04957156255841255
     },
     {
       "feature": "gc_per_90",
-      "importance": 0.006082089617848396
+      "importance": 0.020964065566658974
     },
     {
-      "feature": "goals_scored",
-      "importance": 0.0052335080690681934
+      "feature": "cs_per_90",
+      "importance": 0.010963010601699352
+    },
+    {
+      "feature": "fixture_ease",
+      "importance": 0.010697211138904095
+    },
+    {
+      "feature": "avg_opp_strength",
+      "importance": 0.010433714836835861
     },
     {
       "feature": "goals_per_90",
-      "importance": 0.0032930930610746145
+      "importance": 0.009352480992674828
     }
   ],
   "dataset": {
     "active_players": 524,
-    "features": 28,
+    "features": 22,
     "train_size": 419,
     "test_size": 105
   }
